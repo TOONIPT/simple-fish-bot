@@ -1,0 +1,16 @@
+{
+  "window_hwnd": 2427318,
+  "keys": {
+    "equip_bait": "1",
+    "fish": "space"
+  },
+  "timing": {
+    "after_bait": 0.6,
+    "wait_bite_max": 15,
+    "scan_interval": 0.08
+  },
+  "vision": {
+    "threshold": 0.8,
+    "symbol": "assets/bite_symbol.png"
+  }
+}
