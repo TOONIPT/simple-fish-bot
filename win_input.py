@@ -4,15 +4,33 @@ import logging
 
 logger = logging.getLogger("FishBot.Input")
 
-SendInput = ctypes.windll.user32.SendInput
-MapVirtualKey = ctypes.windll.user32.MapVirtualKeyW
+# Windows API
+user32 = ctypes.windll.user32
+SendInput = user32.SendInput
+MapVirtualKey = user32.MapVirtualKeyW
+PostMessageW = user32.PostMessageW
+SendMessageW = user32.SendMessageW
 
 # Constants
 MAPVK_VK_TO_VSC = 0
 KEYEVENTF_SCANCODE = 0x0008
 KEYEVENTF_KEYUP = 0x0002
 
+# Window messages
+WM_KEYDOWN = 0x0100
+WM_KEYUP = 0x0101
+WM_CHAR = 0x0102
+
 PUL = ctypes.POINTER(ctypes.c_ulong)
+
+# Store target window handle
+_target_hwnd = None
+
+def set_target_window(hwnd):
+    """Set the target window for PostMessage input method."""
+    global _target_hwnd
+    _target_hwnd = hwnd
+    logger.info(f"Target window set to hwnd={hwnd}")
 
 # Virtual key code mapping
 VK_CODES = {
@@ -99,10 +117,71 @@ def release_key(vk):
     result = SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
     logger.debug(f"release_key: vk=0x{vk:02X}, scan=0x{scan_code:02X}, result={result}")
 
-def tap_key(key, delay=0.1):
+def post_key_to_window(hwnd, vk):
+    """Send key directly to window using PostMessage (works even if window not focused)."""
+    scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
+    lparam_down = (scan_code << 16) | 1
+    lparam_up = (scan_code << 16) | 0xC0000001
+    
+    PostMessageW(hwnd, WM_KEYDOWN, vk, lparam_down)
+    time.sleep(0.05)
+    PostMessageW(hwnd, WM_KEYUP, vk, lparam_up)
+    logger.debug(f"post_key_to_window: hwnd={hwnd}, vk=0x{vk:02X}, scan=0x{scan_code:02X}")
+
+def tap_key(key, delay=0.1, use_postmessage=True):
+    """
+    Send a key press.
+    
+    Args:
+        key: Key name or virtual key code
+        delay: Delay between press and release
+        use_postmessage: If True, use PostMessage (works in background). 
+                         If False, use SendInput (requires focus).
+    """
     vk = get_vk_code(key)
-    logger.info(f"Tapping key '{key}' (vk=0x{vk:02X})")
-    press_key(vk)
-    time.sleep(delay)
-    release_key(vk)
+    logger.info(f"Tapping key '{key}' (vk=0x{vk:02X}, method={'PostMessage' if use_postmessage else 'SendInput'})")
+    
+    if use_postmessage and _target_hwnd:
+        post_key_to_window(_target_hwnd, vk)
+        time.sleep(delay)
+    else:
+        press_key(vk)
+        time.sleep(delay)
+        release_key(vk)
+    
     logger.debug(f"Key '{key}' released")
+
+def test_input(key="1"):
+    """Test if input is working. Run this to debug input issues."""
+    import ctypes
+    
+    # Check if running as admin
+    is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+    logger.info(f"Running as Administrator: {is_admin}")
+    
+    if not is_admin:
+        logger.warning("NOT running as Administrator! This may cause input to fail.")
+        logger.warning("Try: Right-click Python/script -> Run as administrator")
+    
+    vk = get_vk_code(key)
+    scan = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
+    
+    logger.info(f"Testing key '{key}': VK=0x{vk:02X}, ScanCode=0x{scan:02X}")
+    logger.info(f"Target window hwnd: {_target_hwnd}")
+    
+    # Test SendInput
+    logger.info("Testing SendInput method...")
+    press_key(vk)
+    time.sleep(0.1)
+    release_key(vk)
+    
+    time.sleep(0.5)
+    
+    # Test PostMessage
+    if _target_hwnd:
+        logger.info("Testing PostMessage method...")
+        post_key_to_window(_target_hwnd, vk)
+    else:
+        logger.warning("No target window set, skipping PostMessage test")
+    
+    logger.info("Input test complete. Check if the game received the key press.")
