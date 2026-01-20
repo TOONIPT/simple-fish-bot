@@ -1,9 +1,20 @@
 import cv2
 import numpy as np
 import logging
+import os
+import sys
 from mss import mss
 
 logger = logging.getLogger("FishBot.Vision")
+
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller."""
+    if hasattr(sys, '_MEIPASS'):
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
 
 
 class Vision:
@@ -11,16 +22,21 @@ class Vision:
         logger.info(f"Initializing Vision system")
         logger.debug(f"Window rect: {window_rect}")
         logger.debug(f"Threshold: {threshold}")
-        logger.debug(f"Symbol path: {symbol_path}")
+        logger.debug(f"Symbol path (relative): {symbol_path}")
+        
+        # Resolve to absolute path
+        abs_symbol_path = get_resource_path(symbol_path)
+        logger.debug(f"Symbol path (absolute): {abs_symbol_path}")
         
         self.sct = mss()
         self.monitor = window_rect
         self.threshold = threshold
-        self.symbol = cv2.imread(symbol_path, 0)
+        self.symbol = cv2.imread(abs_symbol_path, 0)
 
         if self.symbol is None:
-            logger.error(f"Failed to load symbol image: {symbol_path}")
-            raise RuntimeError("Nao foi possivel carregar bite_symbol.png")
+            logger.error(f"Failed to load symbol image: {abs_symbol_path}")
+            logger.error(f"File exists: {os.path.exists(abs_symbol_path)}")
+            raise RuntimeError(f"Nao foi possivel carregar {abs_symbol_path}")
 
         self.sym_h, self.sym_w = self.symbol.shape[:2]
         logger.info(f"Symbol loaded: {self.sym_w}x{self.sym_h} pixels")
