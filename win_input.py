@@ -1,5 +1,8 @@
 import ctypes
 import time
+import logging
+
+logger = logging.getLogger("FishBot.Input")
 
 SendInput = ctypes.windll.user32.SendInput
 
@@ -67,6 +70,8 @@ def release_key(vk):
 
 def tap_key(key, delay=0.1):
     vk = get_vk_code(key)
+    logger.debug(f"Tapping key '{key}' (vk=0x{vk:02X})")
     press_key(vk)
     time.sleep(delay)
     release_key(vk)
+    logger.debug(f"Key '{key}' released")
