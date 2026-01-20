@@ -5,6 +5,12 @@ import logging
 logger = logging.getLogger("FishBot.Input")
 
 SendInput = ctypes.windll.user32.SendInput
+MapVirtualKey = ctypes.windll.user32.MapVirtualKeyW
+
+# Constants
+MAPVK_VK_TO_VSC = 0
+KEYEVENTF_SCANCODE = 0x0008
+KEYEVENTF_KEYUP = 0x0002
 
 PUL = ctypes.POINTER(ctypes.c_ulong)
 
@@ -48,29 +54,54 @@ class KeyBdInput(ctypes.Structure):
         ("dwExtraInfo", PUL),
     ]
 
+class HardwareInput(ctypes.Structure):
+    _fields_ = [
+        ("uMsg", ctypes.c_ulong),
+        ("wParamL", ctypes.c_short),
+        ("wParamH", ctypes.c_ushort),
+    ]
+
+class MouseInput(ctypes.Structure):
+    _fields_ = [
+        ("dx", ctypes.c_long),
+        ("dy", ctypes.c_long),
+        ("mouseData", ctypes.c_ulong),
+        ("dwFlags", ctypes.c_ulong),
+        ("time", ctypes.c_ulong),
+        ("dwExtraInfo", PUL),
+    ]
+
 class Input_I(ctypes.Union):
-    _fields_ = [("ki", KeyBdInput)]
+    _fields_ = [("ki", KeyBdInput), ("mi", MouseInput), ("hi", HardwareInput)]
 
 class Input(ctypes.Structure):
     _fields_ = [("type", ctypes.c_ulong), ("ii", Input_I)]
 
 def press_key(vk):
+    """Press a key using scan codes (works with DirectInput games)."""
+    scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
     extra = ctypes.c_ulong(0)
     ii = Input_I()
-    ii.ki = KeyBdInput(vk, 0, 0, 0, ctypes.pointer(extra))
+    # Use both VK and scan code with KEYEVENTF_SCANCODE flag
+    ii.ki = KeyBdInput(0, scan_code, KEYEVENTF_SCANCODE, 0, ctypes.pointer(extra))
     x = Input(ctypes.c_ulong(1), ii)
-    SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
+    result = SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
+    logger.debug(f"press_key: vk=0x{vk:02X}, scan=0x{scan_code:02X}, result={result}")
 
 def release_key(vk):
+    """Release a key using scan codes (works with DirectInput games)."""
+    scan_code = MapVirtualKey(vk, MAPVK_VK_TO_VSC)
     extra = ctypes.c_ulong(0)
     ii = Input_I()
-    ii.ki = KeyBdInput(vk, 0, 2, 0, ctypes.pointer(extra))
+    # Use scan code with both SCANCODE and KEYUP flags
+    ii.ki = KeyBdInput(0, scan_code, KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP, 0, ctypes.pointer(extra))
     x = Input(ctypes.c_ulong(1), ii)
-    SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
+    result = SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
+    logger.debug(f"release_key: vk=0x{vk:02X}, scan=0x{scan_code:02X}, result={result}")
 
 def tap_key(key, delay=0.1):
     vk = get_vk_code(key)
-    logger.debug(f"Tapping key '{key}' (vk=0x{vk:02X})")
+    logger.info(f"Tapping key '{key}' (vk=0x{vk:02X})")
     press_key(vk)
     time.sleep(delay)
     release_key(vk)
