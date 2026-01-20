@@ -9,12 +9,12 @@ class Fisher:
 
     def equip_bait(self):
         print("Equipar isco")
-        pyautogui.press(self.cfg["keys"]["equip_bait"])
+        tap_key(self.cfg["keys"]["equip_bait"])
         time.sleep(self.cfg["timing"]["after_bait"])
 
     def cast(self):
-        print("➡️ Lançar cana")
-        pyautogui.press(self.cfg["keys"]["fish"])
+        print("Lancar cana")
+        tap_key(self.cfg["keys"]["fish"])
 
     def fish_cycle(self):
         self.equip_bait()
@@ -25,8 +25,8 @@ class Fisher:
 
         while time.time() - start < self.cfg["timing"]["wait_bite_max"]:
             if self.vision.detect_bite():
-                print("🐟 Mordida detetada! Recolher cana")
-                pyautogui.press(self.cfg["keys"]["fish"])
+                print("Mordida detetada! Recolher cana")
+                tap_key(self.cfg["keys"]["fish"])
                 time.sleep(1.2)
                 return True
 
