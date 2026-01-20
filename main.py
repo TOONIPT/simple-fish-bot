@@ -21,7 +21,7 @@ rect = get_window_rect(hwnd)
 vision = Vision(rect, cfg["vision"]["threshold"], cfg["vision"]["symbol"])
 fisher = Fisher(cfg, vision)
 
-print("Fish Bot ativo — Emphyr")
+print("Fish Bot ativo - Emphyr")
 
 while True:
     fisher.fish_cycle()
